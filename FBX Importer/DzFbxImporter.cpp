@@ -454,7 +454,7 @@ void DzFbxImporter::fbxRead( const QString &filename )
 	FbxImporter* fbxImporter = FbxImporter::Create( m_fbxManager, "" );
 	if ( !fbxImporter->Initialize( filename.toUtf8().data(), -1, fbxIoSettings ) )
 	{
-		const FbxStatus status = fbxImporter->GetStatus();
+		const fbxsdk::FbxStatus status = fbxImporter->GetStatus();
 		if ( status != FbxStatus::eSuccess )
 		{
 			dzApp->warning( QString( "FBX Importer: %1" ).arg( status.GetErrorString() ) );
@@ -474,16 +474,16 @@ void DzFbxImporter::fbxRead( const QString &filename )
 		fbxIoSettings->SetBoolProp( IMP_FBX_GLOBAL_SETTINGS, true );
 	}
 
-#if FBXSDK_VERSION_MAJOR >= 2020
+#if FBXSDK_VERSION_MAJOR >= 2020 && FBXSDK_VERSION_MINOR > 0
 	fbxImporter->GetStatus().KeepErrorStringHistory( true );
 #endif
 
 	fbxImporter->Import( m_fbxScene );
 
-	FbxStatus status = fbxImporter->GetStatus();
+	const fbxsdk::FbxStatus& status = fbxImporter->GetStatus();
 	if ( status != FbxStatus::eSuccess )
 	{
-#if FBXSDK_VERSION_MAJOR >= 2020
+#if FBXSDK_VERSION_MAJOR >= 2020 && FBXSDK_VERSION_MINOR > 0
 		FbxArray<FbxString*> history;
 		status.GetErrorStringHistory( history );
 		if ( history.GetCount() > 1 )
