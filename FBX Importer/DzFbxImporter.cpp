@@ -1,3 +1,4 @@
+#define FBX_COMPATIBILITY_MODE true
 /**********************************************************************
 	Copyright (C) 2012-2022 DAZ 3D, Inc. All Rights Reserved.
 
@@ -67,6 +68,9 @@
 #include "dzstyle.h"
 
 // Project Specific
+
+// DB 2023-Mar-30: In-house Fbx utility library
+#include "FbxTools.h"
 
 /*****************************
 	Local Definitions
@@ -206,7 +210,9 @@ DzFbxImporter::DzFbxImporter() :
 	m_studioNodePresentation( c_defaultStudioNodePresentation ),
 	m_studioNodeSelectionMap( c_defaultStudioNodeSelectionMap ),
 	m_studioSceneIDs( c_defaultStudioSceneIDs ),
-	m_root( NULL )
+	m_root( NULL ),
+	//// DB 4-14-2023:
+	m_compatibilityMode( FBX_COMPATIBILITY_MODE )
 {}
 
 /**
@@ -675,6 +681,18 @@ void DzFbxImporter::fbxImportSkinning()
 			dsBinding->setWeights( dsWeightMap );
 			FbxAMatrix fbxMatrix;
 			fbxCluster->GetTransformLinkMatrix( fbxMatrix );
+			
+			// DB 2023-Mar-31: compatibility for Fbx models with joint orientation in BindMatrix
+			if (m_compatibilityMode)
+			{
+				FbxVector4 rotation = fbxMatrix.GetR();
+				if (rotation != FbxVector4(0, 0, 0, 0))
+				{
+					FbxVector4 translation = fbxMatrix.GetT();
+					fbxMatrix.SetIdentity();
+					fbxMatrix.SetT(translation);
+				}
+			}
 
 			DzMatrix3 dsMatrix;
 			dsMatrix[0][0] =  fbxMatrix[0][0];
@@ -1182,16 +1200,61 @@ static FbxVector4 calcFbxRotationOffset( FbxNode* fbxNode )
 	return offset;
 }
 
-static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode )
+static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
 {
 	FbxVector4 fbxPre = fbxNode->GetPreRotation( FbxNode::eSourcePivot );
 	const DzQuat rot( DzRotationOrder::XYZ, DzVec3( fbxPre[0], fbxPre[1], fbxPre[2] ) * DZ_FLT_DEG_TO_RAD );
 
 	dsNode->setOrientation( rot, true );
+
+	// DB 2023-March-30: Support reading joint-orientation from other fields (PostRot, BindMatrix, etc)
+	if (m_compatibilityMode)
+	{
+		// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
+		FbxCluster* fbxCluster = FindClusterFromNode(fbxNode);
+		FbxAMatrix fbxBindMatrix;
+		fbxBindMatrix.SetIdentity();
+		if (fbxCluster)
+		{
+			fbxCluster->GetTransformLinkMatrix(fbxBindMatrix);
+		}
+		FbxAMatrix fbxPostMatrix;
+		fbxPostMatrix.SetR(fbxNode->PostRotation.Get());
+		FbxAMatrix fbxBindPostRotationMatrix = fbxBindMatrix * fbxPostMatrix;
+		FbxVector4 fbxBindPostRotation = fbxBindPostRotationMatrix.GetR();
+		const DzQuat newRot(DzRotationOrder::XYZ, DzVec3(fbxBindPostRotation[0], fbxBindPostRotation[1], fbxBindPostRotation[2]) * DZ_FLT_DEG_TO_RAD);
+		dsNode->setOrientation(newRot, true);
+	}
+
+	//// DB 2023-March-30: Support reading joint-orientation from other fields (PostRot, BindMatrix, etc)
+	//FbxAMatrix fbxPostMatrix;
+	//fbxPostMatrix.SetR(fbxNode->PostRotation.Get());
+	//FbxAMatrix fbxWorldSpaceRotation = fbxNode->EvaluateGlobalTransform();
+	//FbxNode *fbxParentNode = fbxNode->GetParent();
+	//if (fbxParentNode != nullptr)
+	//{
+	//	FbxAMatrix fbxParentWSRotation = fbxParentNode->EvaluateGlobalTransform();
+	//	fbxWorldSpaceRotation = fbxParentWSRotation.Inverse() * fbxWorldSpaceRotation * fbxPostMatrix;
+	//}
+	//FbxVector4 fbxWSRotationVector = fbxWorldSpaceRotation.GetR();
+	//const DzQuat newRot( DzRotationOrder::XYZ, DzVec3(fbxWSRotationVector[0], fbxWSRotationVector[1], fbxWSRotationVector[2]) * DZ_FLT_DEG_TO_RAD );
+	//dsNode->setOrientation(newRot, true );
 }
 
-static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode )
+static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
 {
+	//// DB 4-12-2023: compatibility for joint orientation up when no rotation order specified in file
+	if (m_compatibilityMode)
+	{
+		if (fbxNode->RotationOrder.Get() == FbxEuler::eOrderXYZ &&
+			fbxNode->PreRotation.Get() == FbxVector4(0, 0, 0))
+		{
+			FbxEuler::EOrder rotOrder = FbxEuler::eOrderYZX;
+			fbxNode->RotationOrder.Set(rotOrder);
+			fbxNode->SetRotationOrder(FbxNode::eSourcePivot, rotOrder);
+		}
+	}
+
 	DzRotationOrder dsRotationOrder( DzRotationOrder::XYZ );
 	EFbxRotationOrder fbxRotationOrder( eEulerXYZ );
 
@@ -1223,8 +1286,17 @@ static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode )
 	dsNode->setRotationOrder( dsRotationOrder );
 }
 
-static void setNodeRotation( DzNode* dsNode, FbxNode* fbxNode )
+static void setNodeRotation( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
 {
+	// DB 4-14-2023: TODO: figure out compatibility fix
+	if (m_compatibilityMode)
+	{
+		if (fbxNode->PreRotation.Get() == FbxVector4(0, 0, 0))
+		{
+			return;
+		}
+	}
+
 	const FbxDouble3 lclRotation = fbxNode->LclRotation.Get();
 
 	//dsNode->getXRotControl()->setDefaultValue( lclRotation[0] );
@@ -1268,8 +1340,17 @@ static void setNodeRotationLimits( DzNode* dsNode, FbxNode* fbxNode )
 	}
 }
 
-static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 translationOffset )
+static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 translationOffset, bool m_compatibilityMode = false )
 {
+	// DB 4-14-2023: TODO: figure out compatibility fix
+	if (m_compatibilityMode)
+	{
+		if (fbxNode->PreRotation.Get() == FbxVector4(0, 0, 0))
+		{
+			return;
+		}
+	}
+
 	const FbxDouble3 translation = fbxNode->LclTranslation.Get();
 
 	const float posX = translation[0] - translationOffset[0];
@@ -1556,7 +1637,14 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 	const FbxNull* fbxNull = node->fbxNode->GetNull();
 	if ( fbxNull || !node->fbxNode->GetNodeAttribute() )
 	{
-		node->dsNode = new DzNode();
+		if (CheckIfChildrenAreBones(node->fbxNode))
+		{
+			node->dsNode = createFigure();
+		}
+		else
+		{
+			node->dsNode = new DzNode();
+		}
 	}
 	else
 	{
@@ -1608,7 +1696,41 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 				{
 					dsMeshNode = node->dsParent;
 				}
-				else
+
+				// DB 2023-Mar-31: Find skeleton root/parent node for mesh node
+				if (m_compatibilityMode)
+				{
+					if (!dsMeshNode)
+					{
+						FbxNode* fbxParent = nullptr;
+						fbxParent = FindAssociatedSkeletonRoot(node->fbxNode->GetMesh());
+						if (IsBone(fbxParent, FbxSkeleton::EType::eLimb) ||
+							IsBone(fbxParent, FbxSkeleton::EType::eLimbNode))
+						{
+							fbxParent = fbxParent->GetParent();
+						}
+						if (fbxParent && m_nodeMap.find(fbxParent) != m_nodeMap.end())
+						{
+							auto debugFbxParentName = fbxParent->GetName();
+							DzNode* dsParent = m_nodeMap[fbxParent];
+							if (dsParent)
+							{
+								auto debugObj = dsParent->getObject();
+								auto debugName = dsParent->getName();
+								printf("nop");
+							}
+							if (dsParent &&
+								!dsParent->getObject() &&
+								(dsParent->getName() + ".Shape" == fbxNodeName ||
+									dsParent->getName() + "_Shape" == fbxNodeName))
+							{
+								dsMeshNode = dsParent;
+							}
+						}
+					}
+				}
+
+				if (!dsMeshNode)
 				{
 					const FbxMesh* fbxMesh = node->fbxNode->GetMesh();
 					if ( fbxMesh->GetDeformerCount( FbxDeformer::eSkin ) > 0 )
@@ -1689,9 +1811,34 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 		setNodeInheritsScale( node->dsNode, node->fbxNode );
 
 		const FbxVector4 rotationOffset = calcFbxRotationOffset( node->fbxNode );
-		node->dsNode->setOrigin( toVec3( rotationOffset ), true );
-		setNodeOrientation( node->dsNode, node->fbxNode );
-		setNodeRotationOrder( node->dsNode, node->fbxNode );
+		node->dsNode->setOrigin(toVec3(rotationOffset), true);
+		setNodeOrientation(node->dsNode, node->fbxNode, m_compatibilityMode);
+
+		if (m_compatibilityMode)
+		{
+			FbxVector4 nodePosition = rotationOffset;
+			// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
+			FbxCluster* fbxCluster = FindClusterFromNode(node->fbxNode);
+			FbxAMatrix fbxBindMatrix;
+			fbxBindMatrix.SetIdentity();
+			if (fbxCluster)
+			{
+				fbxCluster->GetTransformLinkMatrix(fbxBindMatrix);
+				FbxVector4 fbxBindPosition = fbxBindMatrix.GetT();
+				fbxBindPosition[3] = 1.0;
+				nodePosition = fbxBindPosition;
+			}
+			node->dsNode->setOrigin(toVec3(nodePosition), true);
+
+			//FbxAMatrix fbxPostMatrix;
+			//fbxPostMatrix.SetR(node->fbxNode->PostRotation.Get());
+			//FbxAMatrix fbxBindPostRotationMatrix = fbxBindMatrix * fbxPostMatrix;
+			//FbxVector4 fbxBindPostRotation = fbxBindPostRotationMatrix.GetR();
+			//const DzQuat newRot(DzRotationOrder::XYZ, DzVec3(fbxBindPostRotation[0], fbxBindPostRotation[1], fbxBindPostRotation[2]) * DZ_FLT_DEG_TO_RAD);
+			//node->dsNode->setOrientation(newRot, true);
+		}
+
+		setNodeRotationOrder( node->dsNode, node->fbxNode, m_compatibilityMode );
 
 		if ( rotationOffset.SquareLength() == 0.0 )
 		{
@@ -1762,6 +1909,7 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 			fbxImportGraph( node->children[i] );
 		}
 
+		DzVec3 originPoint = node->dsNode->getOrigin();
 		DzVec3 endPoint = node->dsNode->getOrigin();
 		if ( node->dsNode->getNumNodeChildren() )
 		{
@@ -1774,6 +1922,9 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 			endPoint.m_y /= node->dsNode->getNumNodeChildren();
 			endPoint.m_z /= node->dsNode->getNumNodeChildren();
 			node->dsNode->setEndPoint( endPoint, true );
+			//// DB 4-12-2023: endPoint testing
+//			DzVec3 delta = endPoint - originPoint;
+//			node->dsNode->setEndPoint(originPoint + delta*0.3, true);
 		}
 		else
 		{
@@ -1826,8 +1977,9 @@ void DzFbxImporter::fbxImportAnimation( Node* node )
 				translationOffset -= node->parent->bindTranslation;
 			}
 
-			setNodeTranslation( node->dsNode, node->fbxNode, translationOffset );
-			setNodeRotation( node->dsNode, node->fbxNode );
+			//// TODO: Replace with blender-compatibility version
+			setNodeTranslation( node->dsNode, node->fbxNode, translationOffset, m_compatibilityMode );
+			setNodeRotation( node->dsNode, node->fbxNode, m_compatibilityMode );
 
 			setNodeScaling( node->dsNode, node->fbxNode );
 		}

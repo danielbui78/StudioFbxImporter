@@ -36,3 +36,4 @@ FBXSDK
 
 # build directory
 /build
+/out

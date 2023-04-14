@@ -119,6 +119,8 @@ add_library( ${DZ_PLUGIN_TGT_NAME} SHARED
 	version.h
 	${OS_SOURCES}
 	${PLUGIN_MOC_SOURCES}
+	FbxTools.cpp
+	FbxTools.h
 )
 
 target_link_libraries( ${DZ_PLUGIN_TGT_NAME}

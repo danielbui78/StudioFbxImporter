@@ -264,6 +264,9 @@ private:
 	bool		m_studioSceneIDs;
 
 	Node*		m_root;
+
+	//// DB 4-14-2023
+	bool		m_compatibilityMode;
 };
 
 
