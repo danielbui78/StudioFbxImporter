@@ -1466,8 +1466,8 @@ void DzFbxImporter::fbxPreImportGraph( FbxNode* fbxNode )
 			for ( int i = 0; i < numSkins; i++ )
 			{
 				// skinning weights must be linked to a bone
-
-				FbxSkin* fbxSkin = FbxCast<FbxSkin>( fbxMesh->GetDeformer( i ) );
+				//// DB 4-14-2023: bugfix for get skin deformer
+				FbxSkin* fbxSkin = FbxCast<FbxSkin>( fbxMesh->GetDeformer( i, FbxDeformer::eSkin) );
 				for ( int j = 0, m = fbxSkin->GetClusterCount(); j < m; j++ )
 				{
 					FbxNode* fbxClusterNode = fbxSkin->GetCluster( j )->GetLink();
