@@ -211,9 +211,12 @@ DzFbxImporter::DzFbxImporter() :
 	m_studioNodeSelectionMap( c_defaultStudioNodeSelectionMap ),
 	m_studioSceneIDs( c_defaultStudioSceneIDs ),
 	m_root( NULL ),
-	//// DB 4-14-2023:
+	//// DB 4-14-2023: compatibility with fbx from other software
 	m_compatibilityMode( FBX_COMPATIBILITY_MODE )
-{}
+{
+	//// DB 4-15-2023: support different axis systems
+	m_axisCorrectionMatrix.SetIdentity();
+}
 
 /**
 **/
@@ -524,6 +527,115 @@ void DzFbxImporter::fbxRead( const QString &filename )
 	m_fbxOrigAppVendor = fbxSceneInfo->Original_ApplicationVendor;
 	m_fbxOrigAppName = fbxSceneInfo->Original_ApplicationName;
 	m_fbxOrigAppVersion = fbxSceneInfo->Original_ApplicationVersion;
+
+	//// DB 4-14-2023: Fbx Global Settings support
+	if (m_compatibilityMode)
+	{
+		FbxGlobalSettings& fbxGlobalSettings = m_fbxScene->GetGlobalSettings();
+		fbxsdk::FbxAxisSystem dsAxisSystem(fbxsdk::FbxAxisSystem::eYAxis,
+			fbxsdk::FbxAxisSystem::eParityOdd, fbxsdk::FbxAxisSystem::eRightHanded);
+		fbxsdk::FbxAxisSystem fbxAxisSystem = fbxGlobalSettings.GetAxisSystem();
+		if (fbxAxisSystem != dsAxisSystem)
+		{
+			// Use ConvertScene() to change nodes, but must also apply change to all vertices because we do not render using Fbx scenegraph
+			dsAxisSystem.ConvertScene(m_fbxScene);
+
+			int fbxUpVectorSign;
+			int fbxFrontVectorSign;
+			fbxsdk::FbxAxisSystem::EUpVector fbxUpVector = fbxAxisSystem.GetUpVector(fbxUpVectorSign);
+			fbxsdk::FbxAxisSystem::EFrontVector fbxFrontVectorParity = fbxAxisSystem.GetFrontVector(fbxFrontVectorSign);
+			m_axisCorrectionMatrix.SetIdentity();
+			if (fbxUpVector == fbxsdk::FbxAxisSystem::eZAxis)
+			{
+				if (fbxFrontVectorParity == fbxsdk::FbxAxisSystem::eParityOdd)
+				{
+					// Y-front
+					m_axisCorrectionMatrix[1][1] = 0.0;
+					m_axisCorrectionMatrix[1][2] = 1.0 * fbxFrontVectorSign;
+					m_axisCorrectionMatrix[2][2] = 0.0;
+					m_axisCorrectionMatrix[2][1] = 1.0 * fbxUpVectorSign;
+				}
+				else
+				{
+					// X-front
+					m_axisCorrectionMatrix[0][0] = 0.0;
+					m_axisCorrectionMatrix[0][2] = 1.0 * fbxFrontVectorSign;
+					m_axisCorrectionMatrix[2][2] = 0.0;
+					m_axisCorrectionMatrix[2][1] = 1.0 * fbxUpVectorSign;
+				}
+			}
+			else if (fbxUpVector == fbxsdk::FbxAxisSystem::eYAxis)
+			{
+				if (fbxFrontVectorParity == fbxsdk::FbxAxisSystem::eParityOdd)
+				{
+					// Z-front, so should only need to change Up and Front vector signs
+					m_axisCorrectionMatrix[1][1] = 1.0 * fbxUpVectorSign;
+					m_axisCorrectionMatrix[2][2] = 1.0 * fbxFrontVectorSign;
+				}
+				else
+				{
+					// X-front
+					// set up axis sign
+					m_axisCorrectionMatrix[1][1] = 1.0 * fbxUpVectorSign;
+					// transpose X and Z axis
+					m_axisCorrectionMatrix[0][0] = 0.0;
+					m_axisCorrectionMatrix[0][2] = 1.0 * fbxFrontVectorSign;
+					m_axisCorrectionMatrix[2][2] = 0.0;
+					m_axisCorrectionMatrix[2][0] = 1.0;
+				}
+			}
+			else
+			{
+				// this is theoretical axis system, should not be used in practice
+
+				if (fbxFrontVectorParity == fbxsdk::FbxAxisSystem::eParityOdd)
+				{
+					// X-up, Z-front
+					// transpose x and y
+					m_axisCorrectionMatrix[0][0] = 0.0;
+					m_axisCorrectionMatrix[0][1] = 1.0 * fbxUpVectorSign;
+					m_axisCorrectionMatrix[1][1] = 0.0;
+					m_axisCorrectionMatrix[1][0] = 1.0;
+					// set z sign
+					m_axisCorrectionMatrix[2][2] = 1.0 * fbxFrontVectorSign;
+				}
+				else
+				{
+					// X-up, Y-front
+					// transpose x to y...
+					m_axisCorrectionMatrix[0][0] = 0.0;
+					m_axisCorrectionMatrix[0][1] = 1.0 * fbxUpVectorSign;
+					// transpose y to z...
+					m_axisCorrectionMatrix[1][1] = 0.0;
+					m_axisCorrectionMatrix[1][2] = 1.0 * fbxFrontVectorSign;
+					// transpose z to x
+					m_axisCorrectionMatrix[2][2] = 0.0;
+					m_axisCorrectionMatrix[2][0] = 1.0;
+				}
+			}
+		}
+		else
+		{
+			// Assume that no AxisSystem was provided...
+			// Override the Default Axis Settings for 3ds Max
+			if (m_fbxOrigAppName == "3ds Max" || m_fbxOrigAppName == "Maya")
+			{
+				int fbxUpVectorSign = 1;
+				int fbxFrontVectorSign = -1;
+				// Assume +Y up, -Z forward
+				m_axisCorrectionMatrix[1][1] = 0.0;
+				m_axisCorrectionMatrix[1][2] = 1.0 * fbxFrontVectorSign;
+				m_axisCorrectionMatrix[2][2] = 0.0;
+				m_axisCorrectionMatrix[2][1] = 1.0 * fbxUpVectorSign;
+			}
+		}
+
+		//// Sanity Check, multiply axisCorrectionMatrix by Y-Up and Z-Up Vectors
+		//FbxVector4 Y_UpVector(0, 1, 0);
+		//FbxVector4 Z_ForwardVector(0, 0, 1);
+		//FbxVector4 newYUpVector = m_axisCorrectionMatrix.MultT(Y_UpVector);
+		//FbxVector4 newZForwardVector = m_axisCorrectionMatrix.MultT(Z_ForwardVector);
+	}
 
 	m_fbxRead = true;
 }
@@ -2087,6 +2199,10 @@ void DzFbxImporter::fbxImportVertices( int numVertices, FbxVector4* fbxVertices,
 	DzPnt3* dsVertices = dsMesh->setVertexArray( numVertices );
 	for ( int i = 0; i < numVertices; i++ )
 	{
+		if (m_compatibilityMode)
+		{
+			fbxVertices[i] = m_axisCorrectionMatrix.MultT(fbxVertices[i]);
+		}
 		dsVertices[i][0] = fbxVertices[i][0] + offset[0];
 		dsVertices[i][1] = fbxVertices[i][1] + offset[1];
 		dsVertices[i][2] = fbxVertices[i][2] + offset[2];
@@ -3093,6 +3209,18 @@ void DzFbxImporter::fbxImportMesh( Node* node, FbxNode* fbxNode, DzNode* dsMeshN
 	if ( dsFigure )
 	{
 		offset = dsFigure->getOrigin();
+	}
+	else if (m_compatibilityMode)
+	{
+		FbxNode* fbxMeshNode = fbxMesh->GetNode();
+		if (fbxMeshNode)
+		{
+			FbxVector4 translation = fbxMeshNode->EvaluateGlobalTransform().GetT();
+			for (int i = 0; i < 3; i++)
+			{
+				offset[i] = translation[i];
+			}
+		}
 	}
 
 	// begin the edit
