@@ -14,7 +14,7 @@
 
 /////////////////////////////////////////////////////////////////////////////////
 /// GEOMETRY FUNCTIONS
-double getLength(double a, double b, double c)
+double FbxTools::getLength(double a, double b, double c)
 {
 	double distance = 0;
 	double a2 = a * a;
@@ -24,7 +24,7 @@ double getLength(double a, double b, double c)
 	return distance;
 }
 
-double getLength(double a, double b)
+double FbxTools::getLength(double a, double b)
 {
 	double distance = 0;
 	double a2 = a * a;
@@ -33,21 +33,21 @@ double getLength(double a, double b)
 	return distance;
 }
 
-double getDistance(FbxVector4 a, FbxVector4 b)
+double FbxTools::getDistance(FbxVector4 a, FbxVector4 b)
 {
 	FbxVector4 ab = b - a;
 	double distance = getLength(ab[0], ab[1], ab[2]);
 	return distance;
 }
 
-double getDistance(FbxVector2 a, FbxVector2 b)
+double FbxTools::getDistance(FbxVector2 a, FbxVector2 b)
 {
 	FbxVector2 ab = b - a;
 	double distance = getLength(ab[0], ab[1]);
 	return distance;
 }
 
-double determinant_3x3(FbxVector4* matrix)
+double FbxTools::determinant_3x3(FbxVector4* matrix)
 {
 	double return_value = 0.0;
 
@@ -64,7 +64,7 @@ double determinant_3x3(FbxVector4* matrix)
 	return return_value;
 }
 
-FbxVector4* CalculateBoundingVolume(QList<FbxVector4>& pointCloud)
+FbxVector4* FbxTools::calculateBoundingVolume(QList<FbxVector4>& pointCloud)
 {
 
 	FbxVector4* result = new FbxVector4[3];
@@ -114,7 +114,7 @@ FbxVector4* CalculateBoundingVolume(QList<FbxVector4>& pointCloud)
 }
 
 
-FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh)
+FbxVector4* FbxTools::calculateBoundingVolume(FbxMesh* pMesh)
 {
 	FbxVector4* result = new FbxVector4[3];
 
@@ -160,7 +160,7 @@ FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh)
 	return result;
 }
 
-FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh, QList<int>* pVertexIndexes)
+FbxVector4* FbxTools::calculateBoundingVolume(FbxMesh* pMesh, QList<int>* pVertexIndexes)
 {
 	FbxVector4* result = new FbxVector4[3];
 
@@ -211,12 +211,12 @@ FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh, QList<int>* pVertexIndexes)
 	return result;
 }
 
-FbxVector4 CalculatePointCloudAverage(FbxMesh* pMesh, QList<int>* pVertexIndexes)
+FbxVector4 FbxTools::calculatePointCloudAverage(FbxMesh* pMesh, QList<int>* pVertexIndexes)
 {
 
 	if (pMesh == nullptr || pVertexIndexes == nullptr || pVertexIndexes->count() <= 0)
 	{
-		dzApp->log("ERROR: CalculatePointCloudCenter recieved invalid inputs");
+		dzApp->log("ERROR: calculatePointCloudCenter recieved invalid inputs");
 		return nullptr;
 	}
 
@@ -239,12 +239,12 @@ FbxVector4 CalculatePointCloudAverage(FbxMesh* pMesh, QList<int>* pVertexIndexes
 
 }
 
-FbxVector4 CalculatePointCloudCenter(FbxMesh* pMesh, QList<int>* pVertexIndexes, bool bCenterWeight = false)
+FbxVector4 FbxTools::calculatePointCloudCenter(FbxMesh* pMesh, QList<int>* pVertexIndexes, bool bCenterWeight)
 {
 
 	if (pMesh == nullptr || pVertexIndexes == nullptr || pVertexIndexes->count() <= 0)
 	{
-		dzApp->log("ERROR: CalculatePointCloudCenter recieved invalid inputs");
+		dzApp->log("ERROR: calculatePointCloudCenter recieved invalid inputs");
 		return nullptr;
 	}
 
@@ -274,7 +274,7 @@ FbxVector4 CalculatePointCloudCenter(FbxMesh* pMesh, QList<int>* pVertexIndexes,
 	cloudCenter[1] = (max_bounds[1] + min_bounds[1]) / 2;
 	cloudCenter[2] = (max_bounds[2] + min_bounds[2]) / 2;
 
-	FbxVector4 cloudAverage = CalculatePointCloudAverage(pMesh, pVertexIndexes);
+	FbxVector4 cloudAverage = calculatePointCloudAverage(pMesh, pVertexIndexes);
 
 	return cloudCenter;
 
@@ -285,7 +285,7 @@ FbxVector4 CalculatePointCloudCenter(FbxMesh* pMesh, QList<int>* pVertexIndexes,
 /// FBX CLUSTER DEFORM FUNCTIONS
 
 // Scale all the elements of a matrix.
-void MultiplyMatrix_InPlace(FbxAMatrix& pMatrix, double pValue)
+void FbxTools::multiplyMatrixInPlace(FbxAMatrix& pMatrix, double pValue)
 {
 	int i, j;
 
@@ -299,7 +299,7 @@ void MultiplyMatrix_InPlace(FbxAMatrix& pMatrix, double pValue)
 }
 
 // Add a value to all the elements in the diagonal of the matrix.
-void AddToScaleOfMatrix_InPlace(FbxAMatrix& pMatrix, double pValue)
+void FbxTools::addToScaleOfMatrixInPlace(FbxAMatrix& pMatrix, double pValue)
 {
 	for (int i = 0; i < 4; i++)
 	{
@@ -308,7 +308,7 @@ void AddToScaleOfMatrix_InPlace(FbxAMatrix& pMatrix, double pValue)
 }
 
 // Sum two matrices element by element
-void AddMatrix_InPlace(FbxAMatrix& destinationMatrix, const FbxAMatrix& sourceMatrix)
+void FbxTools::addMatrixInPlace(FbxAMatrix& destinationMatrix, const FbxAMatrix& sourceMatrix)
 {
 	int i, j;
 
@@ -322,7 +322,7 @@ void AddMatrix_InPlace(FbxAMatrix& destinationMatrix, const FbxAMatrix& sourceMa
 }
 
 // Get the matrix of the given pose
-FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex)
+FbxAMatrix FbxTools::getPoseMatrix(FbxPose* pPose, int pNodeIndex)
 {
 	FbxAMatrix lPoseMatrix;
 	FbxMatrix lMatrix = pPose->GetMatrix(pNodeIndex);
@@ -332,7 +332,7 @@ FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex)
 	return lPoseMatrix;
 }
 
-FbxAMatrix GetAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpace, FbxTime fbxTime)
+FbxAMatrix FbxTools::getAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpace, FbxTime fbxTime)
 {
 	/////////////////////
 	// DEFAULT CASES: Return global or local pose matrix (with matching bReturnLocalSpace)
@@ -353,7 +353,7 @@ FbxAMatrix GetAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpac
 			int nParentIndex = pPose->Find(pParentNode);
 			if (nParentIndex > -1)
 			{
-				parentMatrix = GetAffineMatrix(pPose, nParentIndex, bReturnLocalSpace, fbxTime);
+				parentMatrix = getAffineMatrix(pPose, nParentIndex, bReturnLocalSpace, fbxTime);
 			}
 			else
 			{
@@ -372,7 +372,7 @@ FbxAMatrix GetAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpac
 			int nParentIndex = pPose->Find(pParentNode);
 			if (nParentIndex > -1)
 			{
-				parentMatrix = GetAffineMatrix(pPose, nParentIndex, bReturnLocalSpace, fbxTime);
+				parentMatrix = getAffineMatrix(pPose, nParentIndex, bReturnLocalSpace, fbxTime);
 			}
 			else
 			{
@@ -390,7 +390,7 @@ FbxAMatrix GetAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpac
 }
 
 // Return matrix of pNode, using pPose if it is present, using WS matrix by default, using time infinite by default
-FbxAMatrix GetAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpace, FbxTime fbxTime)
+FbxAMatrix FbxTools::getAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpace, FbxTime fbxTime)
 {
 	FbxAMatrix returnMatrix;
 
@@ -414,7 +414,7 @@ FbxAMatrix GetAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpac
 
 		if (nodeIndex > -1)
 		{
-			returnMatrix = GetAffineMatrix(pPose, nodeIndex, bReturnLocalSpace);
+			returnMatrix = getAffineMatrix(pPose, nodeIndex, bReturnLocalSpace);
 			return returnMatrix;
 		}
 	}
@@ -429,7 +429,7 @@ FbxAMatrix GetAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpac
 	return returnMatrix;
 }
 
-FbxAMatrix GetGeometricAffineMatrix(FbxNode* pNode)
+FbxAMatrix FbxTools::getGeometricAffineMatrix(FbxNode* pNode)
 {
 	FbxVector4 t = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
 	FbxVector4 r = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
@@ -440,7 +440,7 @@ FbxAMatrix GetGeometricAffineMatrix(FbxNode* pNode)
 	return returnMatrix;
 }
 
-bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, FbxCluster* pCluster, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
+bool FbxTools::calculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, FbxCluster* pCluster, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
 {
 	bool bResult = false;
 	// if cluster link mode is eAdditive
@@ -448,7 +448,7 @@ bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, Fbx
 	{
 		FbxAMatrix clusterBindMatrix_x_Geo;
 		pCluster->GetTransformMatrix(clusterBindMatrix_x_Geo);
-		FbxAMatrix meshGeoMatrix = GetGeometricAffineMatrix(pMesh->GetNode());
+		FbxAMatrix meshGeoMatrix = getGeometricAffineMatrix(pMesh->GetNode());
 		clusterBindMatrix_x_Geo *= meshGeoMatrix;
 
 		// associate matrix
@@ -456,14 +456,14 @@ bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, Fbx
 		pCluster->GetTransformAssociateModelMatrix(associateModelMatrix);
 
 		FbxNode* pAssociateMesh = pCluster->GetAssociateModel();
-		FbxAMatrix associateGeoMatrix = GetGeometricAffineMatrix(pAssociateMesh);
-		FbxAMatrix associateModelPosedMatrix = GetAffineMatrix(pPose, pCluster->GetAssociateModel(), false, fbxTime);
+		FbxAMatrix associateGeoMatrix = getGeometricAffineMatrix(pAssociateMesh);
+		FbxAMatrix associateModelPosedMatrix = getAffineMatrix(pPose, pCluster->GetAssociateModel(), false, fbxTime);
 
-		FbxAMatrix clusterPosedMatrix = GetAffineMatrix(pPose, pCluster->GetLink(), false, fbxTime);
+		FbxAMatrix clusterPosedMatrix = getAffineMatrix(pPose, pCluster->GetLink(), false, fbxTime);
 
 		FbxAMatrix clusterLinkBindMatrix_x_Geo;
 		pCluster->GetTransformLinkMatrix(clusterLinkBindMatrix_x_Geo);
-		FbxAMatrix clusterLinkGeoMatrix = GetGeometricAffineMatrix(pCluster->GetLink());
+		FbxAMatrix clusterLinkGeoMatrix = getGeometricAffineMatrix(pCluster->GetLink());
 		clusterLinkBindMatrix_x_Geo *= clusterLinkGeoMatrix;
 
 		/////// Compute the shift of the link relative to the reference.
@@ -474,14 +474,14 @@ bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, Fbx
 	}
 	else
 	{
-		FbxAMatrix clusterPosedMatrix = GetAffineMatrix(pPose, pCluster->GetLink(), false, fbxTime);
+		FbxAMatrix clusterPosedMatrix = getAffineMatrix(pPose, pCluster->GetLink(), false, fbxTime);
 
 		FbxAMatrix clusterLinkBindMatrix_x_Geo;
 		pCluster->GetTransformLinkMatrix(clusterLinkBindMatrix_x_Geo);
 
 		FbxAMatrix clusterBindMatrix_x_Geo;
 		pCluster->GetTransformMatrix(clusterBindMatrix_x_Geo);
-		FbxAMatrix meshGeoMatrix = GetGeometricAffineMatrix(pMesh->GetNode());
+		FbxAMatrix meshGeoMatrix = getGeometricAffineMatrix(pMesh->GetNode());
 		clusterBindMatrix_x_Geo *= meshGeoMatrix;
 
 		// relative_current_inverse * relative_initial
@@ -493,7 +493,7 @@ bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, Fbx
 	return bResult;
 }
 
-bool BakePoseToVertexBuffer_LinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
+bool FbxTools::bakePoseToVertexBufferLinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
 {
 	bool bResult = false;
 	// get cluster link mode
@@ -533,7 +533,7 @@ bool BakePoseToVertexBuffer_LinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix*
 			FbxCluster* pCurrentCluster = pCurrentSkinDeformer->GetCluster(clusterIndex);
 
 			FbxAMatrix clusterTransformMatrix;
-			if (CalculateClusterDeformationMatrix(clusterTransformMatrix, pCurrentCluster, pGlobalOffsetMatrix, pPose, pMesh, fbxTime) == false)
+			if (calculateClusterDeformationMatrix(clusterTransformMatrix, pCurrentCluster, pGlobalOffsetMatrix, pPose, pMesh, fbxTime) == false)
 			{
 				//printf("ERROR: unable to calculate cluster deformation matrix, skipping cluster[%i]", clusterIndex);
 				continue;
@@ -552,16 +552,16 @@ bool BakePoseToVertexBuffer_LinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix*
 				}
 				double fWeightOfVertex = pCurrentCluster->GetControlPointWeights()[localIndex];
 				FbxAMatrix weightedTransformMatrix = clusterTransformMatrix;
-				MultiplyMatrix_InPlace(weightedTransformMatrix, fWeightOfVertex);
+				multiplyMatrixInPlace(weightedTransformMatrix, fWeightOfVertex);
 				if (clusterMode == FbxCluster::eAdditive)
 				{
-					AddToScaleOfMatrix_InPlace(weightedTransformMatrix, 1 - fWeightOfVertex);
+					addToScaleOfMatrixInPlace(weightedTransformMatrix, 1 - fWeightOfVertex);
 					pMatrixBuffer[globalIndex] = weightedTransformMatrix * pMatrixBuffer[globalIndex];
 					pWeightBuffer[globalIndex] = 1.0;
 				}
 				else
 				{
-					AddMatrix_InPlace(pMatrixBuffer[globalIndex], weightedTransformMatrix);
+					addMatrixInPlace(pMatrixBuffer[globalIndex], weightedTransformMatrix);
 					pWeightBuffer[globalIndex] += fWeightOfVertex;
 				}
 			}
@@ -602,7 +602,7 @@ bool BakePoseToVertexBuffer_LinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix*
 	return bResult;
 }
 
-bool BakePoseToVertexBuffer_DualQuaternionPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
+bool FbxTools::bakePoseToVertexBufferDualQuaternionPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime)
 {
 	bool bResult = false;
 	// get cluster link mode
@@ -634,7 +634,7 @@ bool BakePoseToVertexBuffer_DualQuaternionPathway(FbxVector4* pVertexBuffer, Fbx
 			FbxCluster* pCurrentCluster = pCurrentSkinDeformer->GetCluster(clusterIndex);
 
 			FbxAMatrix clusterTransformMatrix;
-			if (CalculateClusterDeformationMatrix(clusterTransformMatrix, pCurrentCluster, pGlobalOffsetMatrix, pPose, pMesh, fbxTime) == false)
+			if (calculateClusterDeformationMatrix(clusterTransformMatrix, pCurrentCluster, pGlobalOffsetMatrix, pPose, pMesh, fbxTime) == false)
 			{
 				//printf("ERROR: unable to calculate cluster deformation matrix, skipping cluster[%i]", clusterIndex);
 				continue;
@@ -731,7 +731,7 @@ bool BakePoseToVertexBuffer_DualQuaternionPathway(FbxVector4* pVertexBuffer, Fbx
 	return bResult;
 }
 
-bool BakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime pTime)
+bool FbxTools::bakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime pTime)
 {
 	bool bResult = false;
 	// get skin deformer for mesh
@@ -743,10 +743,10 @@ bool BakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffset
 	{
 	case FbxSkin::eLinear:
 	case FbxSkin::eRigid:
-		bResult = BakePoseToVertexBuffer_LinearPathway(pVertexBuffer, pGlobalOffsetMatrix, pPose, pMesh, pTime);
+		bResult = bakePoseToVertexBufferLinearPathway(pVertexBuffer, pGlobalOffsetMatrix, pPose, pMesh, pTime);
 		break;
 	case FbxSkin::eDualQuaternion:
-		bResult = BakePoseToVertexBuffer_DualQuaternionPathway(pVertexBuffer, pGlobalOffsetMatrix, pPose, pMesh, pTime);
+		bResult = bakePoseToVertexBufferDualQuaternionPathway(pVertexBuffer, pGlobalOffsetMatrix, pPose, pMesh, pTime);
 		break;
 	case FbxSkin::eBlend:
 		// create temp vertex buffers to compute linear & quaternion pathways
@@ -754,11 +754,11 @@ bool BakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffset
 		int numVerts = pMesh->GetControlPointsCount();
 		FbxVector4* pVertexBuffer_Linear = new FbxVector4[numVerts];
 		memcpy(pVertexBuffer_Linear, pMesh->GetControlPoints(), numVerts * sizeof(FbxVector4));
-		BakePoseToVertexBuffer_LinearPathway(pVertexBuffer_Linear, pGlobalOffsetMatrix, pPose, pMesh, pTime);
+		bakePoseToVertexBufferLinearPathway(pVertexBuffer_Linear, pGlobalOffsetMatrix, pPose, pMesh, pTime);
 		// dual-quaternion
 		FbxVector4* pVertexBuffer_DQ = new FbxVector4[numVerts];
 		memcpy(pVertexBuffer_DQ, pMesh->GetControlPoints(), numVerts * sizeof(FbxVector4));
-		BakePoseToVertexBuffer_DualQuaternionPathway(pVertexBuffer_DQ, pGlobalOffsetMatrix, pPose, pMesh, pTime);
+		bakePoseToVertexBufferDualQuaternionPathway(pVertexBuffer_DQ, pGlobalOffsetMatrix, pPose, pMesh, pTime);
 		// linear-interpolate between the two buffer results
 		int numBlendWeights = pSkinDeformer->GetControlPointIndicesCount();
 		double* pBlendWeightBuffer = pSkinDeformer->GetControlPointBlendWeights();
@@ -782,14 +782,14 @@ bool BakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffset
 
 ////////////////////////////////////////////
 /// FBX POSE FUNCTIONS
-FbxAMatrix FindPoseMatrixOrIdentity(FbxPose* pPose, FbxNode* pNode)
+FbxAMatrix FbxTools::findPoseMatrixOrIdentity(FbxPose* pPose, FbxNode* pNode)
 {
 	FbxAMatrix returnMatrix;
 
 	int nodeIndex = pPose->Find(pNode);
 	if (nodeIndex > -1)
 	{
-		returnMatrix = GetAffineMatrix(pPose, nodeIndex);
+		returnMatrix = getAffineMatrix(pPose, nodeIndex);
 	}
 	else
 	{
@@ -799,14 +799,14 @@ FbxAMatrix FindPoseMatrixOrIdentity(FbxPose* pPose, FbxNode* pNode)
 	return returnMatrix;
 }
 
-FbxAMatrix FindPoseMatrixOrGlobal(FbxPose* pPose, FbxNode* pNode)
+FbxAMatrix FbxTools::findPoseMatrixOrGlobal(FbxPose* pPose, FbxNode* pNode)
 {
 	FbxAMatrix returnMatrix;
 
 	int nodeIndex = pPose->Find(pNode);
 	if (nodeIndex > -1)
 	{
-		returnMatrix = GetAffineMatrix(pPose, nodeIndex);
+		returnMatrix = getAffineMatrix(pPose, nodeIndex);
 	}
 	else
 	{
@@ -816,7 +816,7 @@ FbxAMatrix FindPoseMatrixOrGlobal(FbxPose* pPose, FbxNode* pNode)
 	return returnMatrix;
 }
 
-void RemoveBindPoses(FbxScene* Scene)
+void FbxTools::removeBindPoses(FbxScene* Scene)
 {
 	QList<int> poseIndexesToDelete;
 	int numPoses = Scene->GetPoseCount();
@@ -844,7 +844,7 @@ void RemoveBindPoses(FbxScene* Scene)
 
 }
 
-FbxPose* SaveBindMatrixToPose(FbxScene* pScene, const char* lpPoseName, FbxNode* Argument_pMeshNode, bool bAddPose)
+FbxPose* FbxTools::saveBindMatrixToPose(FbxScene* pScene, const char* lpPoseName, FbxNode* Argument_pMeshNode, bool bAddPose)
 {
 	FbxPose* pNewBindPose = FbxPose::Create(pScene->GetFbxManager(), lpPoseName);
 
@@ -906,7 +906,7 @@ FbxPose* SaveBindMatrixToPose(FbxScene* pScene, const char* lpPoseName, FbxNode*
 	return pNewBindPose;
 }
 
-void ApplyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode, bool bRecurse, bool bClampJoints)
+void FbxTools::applyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode, bool bRecurse, bool bClampJoints)
 {
 	// loop and perform for each node starting with root node
 	if (pNode == nullptr)
@@ -922,14 +922,14 @@ void ApplyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode, bool bRecur
 	FbxNode* pParentNode = pNode->GetParent();
 	if (pParentNode == NULL)
 	{
-		localMatrix = FindPoseMatrixOrGlobal(pPose, pNode);
+		localMatrix = findPoseMatrixOrGlobal(pPose, pNode);
 	}
 	else
 	{
 		const char* lpParentNodeName = pParentNode->GetName();
-		parentMatrix = FindPoseMatrixOrGlobal(pPose, pParentNode);
+		parentMatrix = findPoseMatrixOrGlobal(pPose, pParentNode);
 
-		poseMatrix = FindPoseMatrixOrGlobal(pPose, pNode);
+		poseMatrix = findPoseMatrixOrGlobal(pPose, pNode);
 
 		localMatrix = parentMatrix.Inverse() * poseMatrix;
 	}
@@ -970,13 +970,13 @@ void ApplyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode, bool bRecur
 	for (int childIndex = 0; childIndex < pNode->GetChildCount(); childIndex++)
 	{
 		FbxNode* pChildNode = pNode->GetChild(childIndex);
-		ApplyBindPose(pScene, pPose, pChildNode, bRecurse, bClampJoints);
+		applyBindPose(pScene, pPose, pChildNode, bRecurse, bClampJoints);
 	}
 
 }
 
 
-bool BakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose)
+bool FbxTools::bakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose)
 {
 	// for each cluster,
 	// get link node
@@ -1017,19 +1017,19 @@ bool BakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose)
 				if (poseNodeIndex != -1)
 				{
 					assert(pPose->IsLocalMatrix(poseNodeIndex) == false);
-					FbxAMatrix poseMatrix = GetPoseMatrix(pPose, poseNodeIndex);
+					FbxAMatrix poseMatrix = getPoseMatrix(pPose, poseNodeIndex);
 					pCurrentCluster->SetTransformLinkMatrix(poseMatrix);
 				}
 				else
 				{
-					dzApp->log(QString("ERROR: BakePoseToBindMatrix() could not find cluster bone: %1 in pose").arg(sSearchName));
+					dzApp->log(QString("ERROR: bakePoseToBindMatrix() could not find cluster bone: %1 in pose").arg(sSearchName));
 					bNoPoseBone = true;
 				}
 			}
 			
 			if (pPose == nullptr || bNoPoseBone == true)
 			{
-				FbxAMatrix poseMatrix = GetAffineMatrix(nullptr, clusterBone);
+				FbxAMatrix poseMatrix = getAffineMatrix(nullptr, clusterBone);
 				pCurrentCluster->SetTransformLinkMatrix(poseMatrix);
 			}
 
@@ -1043,7 +1043,7 @@ bool BakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose)
 
 /////////////////////////////////////////////////////////////////////////////////
 /// FBX SCENE FUNCTIONS
-FbxNode* GetRootBone(FbxScene* pScene, bool bRenameRootBone, FbxNode* pPreviousBone)
+FbxNode* FbxTools::getRootBone(FbxScene* pScene, bool bRenameRootBone, FbxNode* pPreviousBone)
 {
 	QList<FbxNode*> todoList;
 
@@ -1120,7 +1120,7 @@ FbxNode* GetRootBone(FbxScene* pScene, bool bRenameRootBone, FbxNode* pPreviousB
 	return pRootBone;
 }
 
-void DetachGeometry(FbxScene* pScene)
+void FbxTools::detachGeometry(FbxScene* pScene)
 {
 	FbxNode* RootNode = pScene->GetRootNode();
 
@@ -1146,7 +1146,7 @@ void DetachGeometry(FbxScene* pScene)
 	}
 }
 
-bool SyncDuplicateBones(FbxScene* lCurrentScene)
+bool FbxTools::syncDuplicateBones(FbxScene* lCurrentScene)
 {
 	// for each bone with .001, sync with original bone
 	for (int i = 0; i < lCurrentScene->GetNodeCount(); i++)
@@ -1173,7 +1173,7 @@ bool SyncDuplicateBones(FbxScene* lCurrentScene)
 				}
 				else
 				{
-					dzApp->log(QString("ERROR: SyncDuplicateBones(): OrigBone not found for: %1").arg(sBoneName));
+					dzApp->log(QString("ERROR: syncDuplicateBones(): OrigBone not found for: %1").arg(sBoneName));
 				}
 			}
 		}
@@ -1184,7 +1184,7 @@ bool SyncDuplicateBones(FbxScene* lCurrentScene)
 }
 
 #if USE_OPENFBX
-bool LoadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress, bool bConvertToZUp)
+bool FbxTools::loadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress, bool bConvertToZUp)
 {
 	OpenFBXInterface* openFBX = OpenFBXInterface::GetInterface();
 
@@ -1213,7 +1213,7 @@ bool LoadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzP
 		FbxMesh* mesh = (FbxMesh*)pPoseScene->GetGeometry(0);
 		if (mesh)
 		{
-			ConvertToZUp(mesh, lookupTable["root"]);
+			convertToZUp(mesh, lookupTable["root"]);
 		}
 	}
 
@@ -1252,7 +1252,7 @@ bool LoadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzP
 #endif
 
 #if USE_OPENFBX
-bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress, bool bConvertToZUp)
+bool FbxTools::loadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress, bool bConvertToZUp)
 {
 	OpenFBXInterface* openFBX = OpenFBXInterface::GetInterface();
 
@@ -1281,7 +1281,7 @@ bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pPro
 		FbxMesh* mesh = (FbxMesh*) pPoseScene->GetGeometry(0);
 		if (mesh)
 		{
-			ConvertToZUp(mesh, lookupTable["root"]);
+			convertToZUp(mesh, lookupTable["root"]);
 		}
 	}
 
@@ -1317,7 +1317,7 @@ bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pPro
 }
 #endif
 
-//bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress )
+//bool loadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress )
 //{
 //	OpenFBXInterface* openFBX = OpenFBXInterface::GetInterface();
 //
@@ -1365,7 +1365,7 @@ bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pPro
 
 
 
-int ConvertToZUp(FbxMesh* mesh, FbxNode* rootNode)
+int FbxTools::convertToZUp(FbxMesh* mesh, FbxNode* rootNode)
 {
 	int correction = 0;
 	FbxVector4 eulerRotation;
@@ -1373,7 +1373,7 @@ int ConvertToZUp(FbxMesh* mesh, FbxNode* rootNode)
 	if (bRotate == false)
 	{
 		// 1. Find Bounding Box
-		FbxVector4* result = CalculateBoundingVolume(mesh);
+		FbxVector4* result = calculateBoundingVolume(mesh);
 		// 2. Check longest axis
 		FbxVector4 cloudSize = result[0];
 		FbxVector4 cloudCenter = result[1];
@@ -1407,16 +1407,16 @@ int ConvertToZUp(FbxMesh* mesh, FbxNode* rootNode)
 	return correction;
 }
 
-bool FlipAndBakeVertexBuffer(FbxMesh* mesh, FbxNode* rootNode, FbxVector4* vertex_buffer)
+bool FbxTools::flipAndBakeVertexBuffer(FbxMesh* mesh, FbxNode* rootNode, FbxVector4* vertex_buffer)
 {
-	if (ConvertToZUp(mesh, rootNode) == false)
+	if (convertToZUp(mesh, rootNode) == false)
 		return false;
-	BakePoseToVertexBuffer(vertex_buffer, &GetAffineMatrix(NULL, mesh->GetNode()), nullptr, mesh);
+	bakePoseToVertexBuffer(vertex_buffer, &getAffineMatrix(NULL, mesh->GetNode()), nullptr, mesh);
 
 	return true;
 }
 
-FbxCluster* FindClusterFromNode(FbxNode* pNode)
+FbxCluster* FbxTools::findClusterFromNode(FbxNode* pNode)
 {
 	// debug
 	int numDstConnections = pNode->GetDstObjectCount();
@@ -1440,7 +1440,7 @@ FbxCluster* FindClusterFromNode(FbxNode* pNode)
 
 }
 
-bool IsBone(FbxNode* pNode, int skeletonTypeMask )
+bool FbxTools::isBone(FbxNode* pNode, int skeletonTypeMask )
 {
 	if (!pNode)
 		return false;
@@ -1473,22 +1473,22 @@ bool IsBone(FbxNode* pNode, int skeletonTypeMask )
 	return false;
 }
 
-bool CheckIfChildrenAreBones(FbxNode* pNode)
+bool FbxTools::checkIfChildrenAreBones(FbxNode* pNode)
 {
 	int numChildren = pNode->GetChildCount();
 	for (int i = 0; i < numChildren; i++)
 	{
 		FbxNode* fbxNode = pNode->GetChild(i);
-		if (IsBone(fbxNode))
+		if (isBone(fbxNode))
 			return true;
 
-		CheckIfChildrenAreBones(fbxNode);
+		checkIfChildrenAreBones(fbxNode);
 	}
 
 	return false;
 }
 
-void InspectNode(FbxNode* pNode)
+void FbxTools::inspectNode(FbxNode* pNode)
 {
 	if (!pNode)
 	{
@@ -1529,7 +1529,7 @@ void InspectNode(FbxNode* pNode)
 
 }
 
-FbxNode* FindAssociatedSkeletonRoot(FbxMesh* pMesh)
+FbxNode* FbxTools::findAssociatedSkeletonRoot(FbxMesh* pMesh)
 {
 	if (pMesh == nullptr)
 		return nullptr;
@@ -1560,11 +1560,11 @@ FbxNode* FindAssociatedSkeletonRoot(FbxMesh* pMesh)
 		{
 			// find root of bone, go up parent tree until non skeleton parent is found, or skeleton is null
 			FbxNode* pParentNode = pLinkNode->GetParent();
-			while (pParentNode && IsBone(pParentNode))
+			while (pParentNode && isBone(pParentNode))
 			{
 				pSkeletonRoot = pParentNode;
 				if ( pParentNode->GetParent() == nullptr ||
-					IsBone(pParentNode->GetParent()) == false )
+					isBone(pParentNode->GetParent()) == false )
 				{
 					break;
 				}

@@ -492,7 +492,7 @@ void DzFbxImporter::fbxRead( const QString &filename )
 	const fbxsdk::FbxStatus& status = fbxImporter->GetStatus();
 	if ( status != FbxStatus::eSuccess )
 	{
-#if FBXSDK_VERSION_MAJOR >= 2020 && FBXSDK_VERSION_MINOR > 0
+#if FBXSDK_VERSION_MAJOR >= 2020 && FBXSDK_VERSION_MINOR > 2
 		FbxArray<FbxString*> history;
 		status.GetErrorStringHistory( history );
 		if ( history.GetCount() > 1 )
@@ -1323,7 +1323,7 @@ static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, bool m_compati
 	if (m_compatibilityMode)
 	{
 		// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
-		FbxCluster* fbxCluster = FindClusterFromNode(fbxNode);
+		FbxCluster* fbxCluster = FbxTools::findClusterFromNode(fbxNode);
 		FbxAMatrix fbxBindMatrix;
 		fbxBindMatrix.SetIdentity();
 		if (fbxCluster)
@@ -1749,7 +1749,7 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 	const FbxNull* fbxNull = node->fbxNode->GetNull();
 	if ( fbxNull || !node->fbxNode->GetNodeAttribute() )
 	{
-		if (CheckIfChildrenAreBones(node->fbxNode))
+		if (FbxTools::checkIfChildrenAreBones(node->fbxNode))
 		{
 			node->dsNode = createFigure();
 		}
@@ -1815,9 +1815,9 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 					if (!dsMeshNode)
 					{
 						FbxNode* fbxParent = nullptr;
-						fbxParent = FindAssociatedSkeletonRoot(node->fbxNode->GetMesh());
-						if (IsBone(fbxParent, FbxSkeleton::EType::eLimb) ||
-							IsBone(fbxParent, FbxSkeleton::EType::eLimbNode))
+						fbxParent = FbxTools::findAssociatedSkeletonRoot(node->fbxNode->GetMesh());
+						if (FbxTools::isBone(fbxParent, FbxSkeleton::EType::eLimb) ||
+							FbxTools::isBone(fbxParent, FbxSkeleton::EType::eLimbNode))
 						{
 							fbxParent = fbxParent->GetParent();
 						}
@@ -1930,7 +1930,7 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 		{
 			FbxVector4 nodePosition = rotationOffset;
 			// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
-			FbxCluster* fbxCluster = FindClusterFromNode(node->fbxNode);
+			FbxCluster* fbxCluster = FbxTools::findClusterFromNode(node->fbxNode);
 			FbxAMatrix fbxBindMatrix;
 			fbxBindMatrix.SetIdentity();
 			if (fbxCluster)

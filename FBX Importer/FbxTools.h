@@ -1,84 +1,98 @@
 #include <qlist.h>
 #include <fbxsdk.h>
 
-#define Y_TO_Z(a) FbxVector4(a[0], a[2], a[1])
-#define Y_TO_NEGZ(a) FbxVector4(a[0], a[2], -a[1])
-#define NEGY_TO_NEGZ(a) FbxVector4(a[0], -a[2], -a[1])
-#define NEGZ(a) FbxVector4(a[0], a[1], -a[2])
+//#define Y_TO_Z(a) FbxVector4(a[0], a[2], a[1])
+//#define Y_TO_NEGZ(a) FbxVector4(a[0], a[2], -a[1])
+//#define NEGY_TO_NEGZ(a) FbxVector4(a[0], -a[2], -a[1])
+//#define NEGZ(a) FbxVector4(a[0], a[1], -a[2])
 
 class DzProgress;
 
-double getLength(double a, double b);
+class FbxTools
+{
+public:
+	template <typename T> static FbxVector4 transposeYtoZ(const T& a) { return FbxVector4(a[0], a[2], a[1]); }
+	template <typename T> static FbxVector4 transposeYtoNegZ(const T& a) { return FbxVector4(a[0], a[2], -a[1]); }
+	template <typename T> static FbxVector4 transposeNegYtoNegZ(const T& a) { return FbxVector4(a[0], -a[2], -a[1]); }
+	template <typename T> static FbxVector4 transposeToNegZ(const T& a) { return FbxVector4(a[0], a[1], -a[2]); }
 
-double getLength(double a, double b, double c);
+	static double getLength(double a, double b);
 
-double getDistance(FbxVector2 a, FbxVector2 b);
+	static double getLength(double a, double b, double c);
 
-double getDistance(FbxVector4 a, FbxVector4 b);
+	static double getDistance(FbxVector2 a, FbxVector2 b);
 
-double determinant_3x3(FbxVector4* matrix);
+	static double getDistance(FbxVector4 a, FbxVector4 b);
 
-FbxVector4* CalculateBoundingVolume(QList<FbxVector4>& pointCloud);
+	static double determinant_3x3(FbxVector4* matrix);
 
-FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh);
+	static FbxVector4 calculatePointCloudAverage(FbxMesh* pMesh, QList<int>* pVertexIndexes);
 
-FbxVector4* CalculateBoundingVolume(FbxMesh* pMesh, QList<int>* pVertexIndexes);
+	static FbxVector4 calculatePointCloudCenter(FbxMesh* pMesh, QList<int>* pVertexIndexes, bool bCenterWeight = false);
 
-void MultiplyMatrix_InPlace(FbxAMatrix& pMatrix, double pValue);
+	static FbxVector4* calculateBoundingVolume(QList<FbxVector4>& pointCloud);
 
-void AddToScaleOfMatrix_InPlace(FbxAMatrix& pMatrix, double pValue);
+	static FbxVector4* calculateBoundingVolume(FbxMesh* pMesh);
 
-void AddMatrix_InPlace(FbxAMatrix& destinationMatrix, const FbxAMatrix& sourceMatrix);
+	static FbxVector4* calculateBoundingVolume(FbxMesh* pMesh, QList<int>* pVertexIndexes);
 
-FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex);
+	static void multiplyMatrixInPlace(FbxAMatrix& pMatrix, double pValue);
 
-FbxAMatrix GetAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpace = false, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
+	static void addToScaleOfMatrixInPlace(FbxAMatrix& pMatrix, double pValue);
 
-FbxAMatrix GetAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpace = false, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
+	static void addMatrixInPlace(FbxAMatrix& destinationMatrix, const FbxAMatrix& sourceMatrix);
 
-FbxAMatrix GetGeometricAffineMatrix(FbxNode* pNode);
+	static FbxAMatrix getPoseMatrix(FbxPose* pPose, int pNodeIndex);
 
-bool CalculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, FbxCluster* pCluster, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
+	static FbxAMatrix getAffineMatrix(FbxPose* pPose, int nItemIndex, bool bReturnLocalSpace = false, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
 
-bool BakePoseToVertexBuffer_LinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
+	static FbxAMatrix getAffineMatrix(FbxPose* pPose, FbxNode* pNode, bool bReturnLocalSpace = false, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
 
-bool BakePoseToVertexBuffer_DualQuaternionPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
+	static FbxAMatrix getGeometricAffineMatrix(FbxNode* pNode);
 
-bool BakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime pTime = FBXSDK_TIME_INFINITE);
+	static bool calculateClusterDeformationMatrix(FbxAMatrix& clusterDeformationMatrix, FbxCluster* pCluster, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
 
-FbxAMatrix FindPoseMatrixOrIdentity(FbxPose* pPose, FbxNode* pNode);
+	static bool bakePoseToVertexBufferLinearPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
 
-FbxAMatrix FindPoseMatrixOrGlobal(FbxPose* pPose, FbxNode* pNode);
+	static bool bakePoseToVertexBufferDualQuaternionPathway(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime fbxTime = FBXSDK_TIME_INFINITE);
 
-void RemoveBindPoses(FbxScene* Scene);
+	static bool bakePoseToVertexBuffer(FbxVector4* pVertexBuffer, FbxAMatrix* pGlobalOffsetMatrix, FbxPose* pPose, FbxMesh* pMesh, FbxTime pTime = FBXSDK_TIME_INFINITE);
 
-FbxPose* SaveBindMatrixToPose(FbxScene* pScene, const char* lpPoseName, FbxNode* Argument_pMeshNode = nullptr, bool bAddPose = false);
+	static FbxAMatrix findPoseMatrixOrIdentity(FbxPose* pPose, FbxNode* pNode);
 
-void ApplyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode = nullptr, bool bRecurse = true, bool bClampJoints = false);
+	static FbxAMatrix findPoseMatrixOrGlobal(FbxPose* pPose, FbxNode* pNode);
+
+	static void removeBindPoses(FbxScene* Scene);
+
+	static FbxPose* saveBindMatrixToPose(FbxScene* pScene, const char* lpPoseName, FbxNode* Argument_pMeshNode = nullptr, bool bAddPose = false);
+
+	static void applyBindPose(FbxScene* pScene, FbxPose* pPose, FbxNode* pNode = nullptr, bool bRecurse = true, bool bClampJoints = false);
+
+	static FbxNode* getRootBone(FbxScene* pScene, bool bRenameRootBone = false, FbxNode* pPreviousBone = nullptr);
+
+	static void detachGeometry(FbxScene* pScene);
+
+	static bool bakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose);
+
+	static bool syncDuplicateBones(FbxScene* lCurrentScene);
+
+	static bool loadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress = nullptr, bool bConvertToZUp = false);
+
+	static bool loadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress = nullptr, bool bConvertToZUp = false);
+
+	static int convertToZUp(FbxMesh* mesh, FbxNode* rootNode);
+
+	static bool flipAndBakeVertexBuffer(FbxMesh* mesh, FbxNode* rootNode, FbxVector4* vertex_buffer);
+
+	static FbxCluster* findClusterFromNode(FbxNode* pNode);
+
+	static void inspectNode(FbxNode* pNode);
+
+	static bool checkIfChildrenAreBones(FbxNode* pNode);
+
+	static bool isBone(FbxNode* pNode, int skeletonTypeMask = -1);
+
+	static FbxNode* findAssociatedSkeletonRoot(FbxMesh* pMesh);
+};
 
 
-FbxNode* GetRootBone(FbxScene* pScene, bool bRenameRootBone = false, FbxNode* pPreviousBone = nullptr);
-
-void DetachGeometry(FbxScene* pScene);
-
-bool BakePoseToBindMatrix(FbxMesh* pMesh, FbxPose* pPose);
-
-bool SyncDuplicateBones(FbxScene* lCurrentScene);
-
-bool LoadAndPoseBelowHeadOnly(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress = nullptr, bool bConvertToZUp = false);
-
-bool LoadAndPose(QString poseFilePath, FbxScene* lCurrentScene, DzProgress* pProgress = nullptr, bool bConvertToZUp = false);
-
-int ConvertToZUp(FbxMesh* mesh, FbxNode* rootNode);
-
-bool FlipAndBakeVertexBuffer(FbxMesh* mesh, FbxNode* rootNode, FbxVector4* vertex_buffer);
-
-FbxCluster* FindClusterFromNode(FbxNode* pNode);
-
-void InspectNode(FbxNode* pNode);
-
-bool CheckIfChildrenAreBones(FbxNode* pNode);
-
-bool IsBone(FbxNode* pNode, int skeletonTypeMask = -1);
-
-FbxNode* FindAssociatedSkeletonRoot(FbxMesh* pMesh);
