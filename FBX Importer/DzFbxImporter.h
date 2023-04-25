@@ -95,6 +95,16 @@ public:
 	QStringList	getAnimStackNames() const;
 	QStringList	getErrorList() const;
 
+	//// DB 4-26-2023
+	enum ECompatibilityMode
+	{
+		DefaultCompatibilityMode = 0,
+		UniversalCompatbilityMode = 1,
+		MayaCompatibilityMode = 2,
+		BlenderCompatibilityMode = 3,
+	};
+	ECompatibilityMode m_compatibilityMode;
+
 public slots:
 
 	void		setRotationLimits( bool enable );
@@ -265,8 +275,6 @@ private:
 
 	Node*		m_root;
 
-	//// DB 4-14-2023
-	bool		m_compatibilityMode;
 	//// DB 4-15-2023
 	FbxAMatrix	m_axisCorrectionMatrix;
 };

@@ -1,4 +1,4 @@
-#define FBX_COMPATIBILITY_MODE true
+#define FBX_COMPATIBILITY_MODE	DzFbxImporter::ECompatibilityMode::UniversalCompatbilityMode
 /**********************************************************************
 	Copyright (C) 2012-2022 DAZ 3D, Inc. All Rights Reserved.
 
@@ -127,15 +127,16 @@ DzFigure* createFigure()
 	// we attempt to find the property by name and if found set its value.
 
 	if ( !QMetaObject::invokeMethod( dsFigure,
-		"getFollowModeControl", Q_RETURN_ARG( DzEnumProperty*, followModeControl ) ) 
+		"getFollowModeControl", Q_RETURN_ARG( DzEnumProperty*, followModeControl ) )
 		|| !followModeControl )
 	{
 		followModeControl = qobject_cast<DzEnumProperty*>( dsFigure->findProperty( "Fit to Mode" ) );
-		if ( followModeControl )
-		{
-			followModeControl->setValue( 1 );
-		}
 	}
+	if (followModeControl)
+	{
+		followModeControl->setValue(1);
+	}
+
 #endif
 
 	dsFigure->setDrawGLBones( true );
@@ -793,7 +794,31 @@ void DzFbxImporter::fbxImportSkinning()
 			dsBinding->setWeights( dsWeightMap );
 			FbxAMatrix fbxMatrix;
 			fbxCluster->GetTransformLinkMatrix( fbxMatrix );
-			
+
+			// DB 2023-Mar-31: compatibility for Fbx models with joint orientation in BindMatrix
+			if (m_compatibilityMode)
+			{
+				FbxVector4 rotation = fbxMatrix.GetR();
+				if (rotation != FbxVector4(0, 0, 0, 0))
+				{
+					FbxVector4 translation = fbxMatrix.GetT();
+					fbxMatrix.SetIdentity();
+					fbxMatrix.SetT(translation);
+				}
+			}
+
+			// DB 2023-Mar-31: compatibility for Fbx models with joint orientation in BindMatrix
+			if (m_compatibilityMode)
+			{
+				FbxVector4 rotation = fbxMatrix.GetR();
+				if (rotation != FbxVector4(0, 0, 0, 0))
+				{
+					FbxVector4 translation = fbxMatrix.GetT();
+					fbxMatrix.SetIdentity();
+					fbxMatrix.SetT(translation);
+				}
+			}
+
 			// DB 2023-Mar-31: compatibility for Fbx models with joint orientation in BindMatrix
 			if (m_compatibilityMode)
 			{
@@ -1312,7 +1337,7 @@ static FbxVector4 calcFbxRotationOffset( FbxNode* fbxNode )
 	return offset;
 }
 
-static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
+static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode )
 {
 	FbxVector4 fbxPre = fbxNode->GetPreRotation( FbxNode::eSourcePivot );
 	const DzQuat rot( DzRotationOrder::XYZ, DzVec3( fbxPre[0], fbxPre[1], fbxPre[2] ) * DZ_FLT_DEG_TO_RAD );
@@ -1353,7 +1378,7 @@ static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, bool m_compati
 	//dsNode->setOrientation(newRot, true );
 }
 
-static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
+static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 {
 	//// DB 4-12-2023: compatibility for joint orientation up when no rotation order specified in file
 	if (m_compatibilityMode)
@@ -1398,12 +1423,17 @@ static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, bool m_compa
 	dsNode->setRotationOrder( dsRotationOrder );
 }
 
-static void setNodeRotation( DzNode* dsNode, FbxNode* fbxNode, bool m_compatibilityMode = false )
+static void setNodeRotation( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 {
 	// DB 4-14-2023: TODO: figure out compatibility fix
 	if (m_compatibilityMode)
 	{
-		if (fbxNode->PreRotation.Get() == FbxVector4(0, 0, 0))
+		// DB: DEBUG set default value to 0
+		dsNode->getXRotControl()->setDefaultValue( 0 );
+		dsNode->getYRotControl()->setDefaultValue( 0 );
+		dsNode->getZRotControl()->setDefaultValue( 0 );
+
+		
 		{
 			return;
 		}
@@ -1452,7 +1482,7 @@ static void setNodeRotationLimits( DzNode* dsNode, FbxNode* fbxNode )
 	}
 }
 
-static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 translationOffset, bool m_compatibilityMode = false )
+static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 translationOffset, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 {
 	// DB 4-14-2023: TODO: figure out compatibility fix
 	if (m_compatibilityMode)
@@ -1465,9 +1495,27 @@ static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 transla
 
 	const FbxDouble3 translation = fbxNode->LclTranslation.Get();
 
-	const float posX = translation[0] - translationOffset[0];
-	const float posY = translation[1] - translationOffset[1];
-	const float posZ = translation[2] - translationOffset[2];
+	//const float posX = translation[0] - translationOffset[0];
+	//const float posY = translation[1] - translationOffset[1];
+	//const float posZ = translation[2] - translationOffset[2];
+	float posX = translation[0] - translationOffset[0];
+	float posY = translation[1] - translationOffset[1];
+	float posZ = translation[2] - translationOffset[2];
+
+	// DB 4-14-2023: TODO: figure out compatibility fix
+	if (m_compatibilityMode)
+	{
+		FbxVector4 translationVector = fbxNode->EvaluateGlobalTransform().GetT();
+		DzVec3 defaultOrigin = dsNode->getOrigin(true);
+		posX = translationVector[0] - defaultOrigin[0];
+		posY = translationVector[1] - defaultOrigin[1];
+		posZ = translationVector[2] - defaultOrigin[2];
+
+		dsNode->getXPosControl()->setDefaultValue( 0 );
+		dsNode->getYPosControl()->setDefaultValue( 0 );
+		dsNode->getZPosControl()->setDefaultValue( 0 );
+		//return;
+	}
 
 	//dsNode->getXPosControl()->setDefaultValue( posX );
 	//dsNode->getYPosControl()->setDefaultValue( posY );
@@ -1771,6 +1819,28 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 				{
 				case FbxSkeleton::eRoot:
 					node->dsNode = createFigure();
+					// DB 4-20-2023: follow-parent fix
+					if (m_nodeMap.find(node->fbxNode->GetParent()) != m_nodeMap.end())
+					{
+						DzNode* dsParent = m_nodeMap[node->fbxNode->GetParent()];
+						DzFigure* dsParentFigure = qobject_cast<DzFigure*>(dsParent);
+						DzFigure* dsFigure = qobject_cast<DzFigure*>(node->dsNode);
+						if (dsFigure && dsParentFigure)
+						{
+							dsFigure->setFollowTarget(dsParent->getSkeleton());
+							DzEnumProperty* followModeControl = NULL;
+							if (!QMetaObject::invokeMethod(dsFigure,
+								"getFollowModeControl", Q_RETURN_ARG(DzEnumProperty*, followModeControl))
+								|| !followModeControl)
+							{
+								followModeControl = qobject_cast<DzEnumProperty*>(dsFigure->findProperty("Fit to Mode"));
+							}
+							if (followModeControl)
+							{
+								followModeControl->setValue(0);
+							}
+						}
+					}
 					break;
 				case FbxSkeleton::eLimb: //intentional fall-through
 				case FbxSkeleton::eLimbNode:
@@ -1849,6 +1919,18 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 					{
 						node->dsNode = createFigure();
 						node->collapseTranslation = true;
+						// DB 4-20-2023: follow-parent fix
+						if (m_nodeMap.find(node->fbxNode->GetParent()) != m_nodeMap.end())
+						{
+							DzNode* dsParent = m_nodeMap[node->fbxNode->GetParent()];
+							DzFigure* dsParentFigure = qobject_cast<DzFigure*>(dsParent);
+							DzFigure* dsFigure = qobject_cast<DzFigure*>(node->dsNode);
+							if (dsFigure && dsParentFigure)
+							{
+								QString parentLabel = dsParent->getLabel();
+								dsFigure->setFollowTarget(dsParent->getSkeleton());
+							}
+						}
 					}
 					else
 					{
@@ -2089,11 +2171,18 @@ void DzFbxImporter::fbxImportAnimation( Node* node )
 				translationOffset -= node->parent->bindTranslation;
 			}
 
-			//// TODO: Replace with blender-compatibility version
-			setNodeTranslation( node->dsNode, node->fbxNode, translationOffset, m_compatibilityMode );
-			setNodeRotation( node->dsNode, node->fbxNode, m_compatibilityMode );
-
-			setNodeScaling( node->dsNode, node->fbxNode );
+			if (getOriginalAppName().compare("daz studio", Qt::CaseInsensitive)!=0 && m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
+			{
+				setNodeTranslation(node->dsNode, node->fbxNode, translationOffset, m_compatibilityMode);
+				setNodeRotation(node->dsNode, node->fbxNode, m_compatibilityMode);
+				setNodeScaling(node->dsNode, node->fbxNode);
+			}
+			else
+			{
+				setNodeTranslation(node->dsNode, node->fbxNode, translationOffset);
+				setNodeRotation(node->dsNode, node->fbxNode);
+				setNodeScaling(node->dsNode, node->fbxNode);
+			}
 		}
 
 		if ( m_fbxAnimLayer && !node->collapseTranslation )
@@ -2323,6 +2412,16 @@ void DzFbxImporter::fbxImportMaterials( FbxNode* fbxNode, FbxMesh* fbxMesh, DzFa
 			// Maya and Max want transparency in the color
 			opacityBase = 1 - (fbxPhong->TransparentColor.Get()[0] + fbxPhong->TransparentColor.Get()[1] + fbxPhong->TransparentColor.Get()[2]) / 3;
 			opacityMap = toTexture( fbxPhong->TransparentColor );
+			// DB: 4-25-23: Phong Transparency Fix for Maya and Daz Studio
+			if (m_compatibilityMode)
+			{
+				FbxDouble fbxTransparencyFactor = fbxPhong->TransparencyFactor.Get();
+				opacityBase = 1 - (fbxPhong->TransparentColor.Get()[0] * fbxTransparencyFactor + fbxPhong->TransparentColor.Get()[1] * fbxTransparencyFactor + fbxPhong->TransparentColor.Get()[2] * fbxTransparencyFactor) / 3;
+				if (opacityBase != 1.0f && getOriginalAppName().compare("Daz Studio", Qt::CaseInsensitive) == 0)
+				{
+					opacityBase = 1 - opacityBase;
+				}
+			}
 
 			if ( dsDefMaterial )
 			{
