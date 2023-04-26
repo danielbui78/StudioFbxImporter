@@ -100,8 +100,10 @@ public:
 	{
 		DefaultCompatibilityMode = 0,
 		UniversalCompatbilityMode = 1,
-		MayaCompatibilityMode = 2,
-		BlenderCompatibilityMode = 3,
+		DazStudioCompatibilityMode = 2,
+		MayaCompatibilityMode = 3,
+		MaxCompatibilityMode = 4,
+		BlenderCompatibilityMode = 5,
 	};
 	ECompatibilityMode m_compatibilityMode;
 

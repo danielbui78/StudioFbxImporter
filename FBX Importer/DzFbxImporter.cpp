@@ -1363,19 +1363,6 @@ static void setNodeOrientation( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter:
 		dsNode->setOrientation(newRot, true);
 	}
 
-	//// DB 2023-March-30: Support reading joint-orientation from other fields (PostRot, BindMatrix, etc)
-	//FbxAMatrix fbxPostMatrix;
-	//fbxPostMatrix.SetR(fbxNode->PostRotation.Get());
-	//FbxAMatrix fbxWorldSpaceRotation = fbxNode->EvaluateGlobalTransform();
-	//FbxNode *fbxParentNode = fbxNode->GetParent();
-	//if (fbxParentNode != nullptr)
-	//{
-	//	FbxAMatrix fbxParentWSRotation = fbxParentNode->EvaluateGlobalTransform();
-	//	fbxWorldSpaceRotation = fbxParentWSRotation.Inverse() * fbxWorldSpaceRotation * fbxPostMatrix;
-	//}
-	//FbxVector4 fbxWSRotationVector = fbxWorldSpaceRotation.GetR();
-	//const DzQuat newRot( DzRotationOrder::XYZ, DzVec3(fbxWSRotationVector[0], fbxWSRotationVector[1], fbxWSRotationVector[2]) * DZ_FLT_DEG_TO_RAD );
-	//dsNode->setOrientation(newRot, true );
 }
 
 static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
@@ -1425,21 +1412,50 @@ static void setNodeRotationOrder( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporte
 
 static void setNodeRotation( DzNode* dsNode, FbxNode* fbxNode, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 {
-	// DB 4-14-2023: TODO: figure out compatibility fix
-	if (m_compatibilityMode)
+	//const FbxDouble3 lclRotation = fbxNode->LclRotation.Get();
+	FbxDouble3 lclRotation = fbxNode->LclRotation.Get();
+
+	// DB 4-27-2023: Correction matrix for non-Daz poses
+	// Daz Pose Control value is relative to the bind matrix, so we need to calculate the difference between the bind matrix and the
+	//    current worldspace pose matrix but we also need to remove the parent contribution to bind matrix and pose matrix
+	// Daz pose control = (parent inverse bind matrix * bind matrix).Inverse() * (parent inverse worldspace pose matrix * worldspace pose matrix )
+	if (m_compatibilityMode && m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DazStudioCompatibilityMode)
 	{
-		// DB: DEBUG set default value to 0
+		FbxAMatrix parentWSMatrix;
+		parentWSMatrix.SetIdentity();
+		FbxAMatrix parentBindMatrix;
+		parentBindMatrix.SetIdentity();
+		if (fbxNode->GetParent())
+		{
+			parentWSMatrix = fbxNode->GetParent()->EvaluateGlobalTransform();
+			FbxTools::getBindMatrixFromCluster(fbxNode->GetParent(), parentBindMatrix);
+		}
+		FbxAMatrix currentWSMatrix = fbxNode->EvaluateGlobalTransform();
+		FbxAMatrix bindMatrix;
+		bindMatrix.SetIdentity();
+		FbxTools::getBindMatrixFromCluster(fbxNode, bindMatrix);
+		FbxAMatrix currentLclMatrix = parentWSMatrix.Inverse() * currentWSMatrix;
+		FbxAMatrix localBindMatrix = parentBindMatrix.Inverse() * bindMatrix;
+		FbxAMatrix lclMatrix = localBindMatrix.Inverse() * currentLclMatrix;
+
+		FbxVector4 rotationVector = lclMatrix.GetR();
+		float rotX = rotationVector[0];
+		float rotY = rotationVector[1];
+		float rotZ = rotationVector[2];
+		lclRotation[0] = rotX;
+		lclRotation[1] = rotY;
+		lclRotation[2] = rotZ;
+
 		dsNode->getXRotControl()->setDefaultValue( 0 );
 		dsNode->getYRotControl()->setDefaultValue( 0 );
 		dsNode->getZRotControl()->setDefaultValue( 0 );
 
-		
+		// DB 4-27-2023: TODO: add implementation for Max worldspace evaluation equation
+		if (m_compatibilityMode == DzFbxImporter::ECompatibilityMode::MaxCompatibilityMode)
 		{
 			return;
 		}
 	}
-
-	const FbxDouble3 lclRotation = fbxNode->LclRotation.Get();
 
 	//dsNode->getXRotControl()->setDefaultValue( lclRotation[0] );
 	//dsNode->getYRotControl()->setDefaultValue( lclRotation[1] );
@@ -1484,15 +1500,6 @@ static void setNodeRotationLimits( DzNode* dsNode, FbxNode* fbxNode )
 
 static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 translationOffset, DzFbxImporter::ECompatibilityMode m_compatibilityMode = DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 {
-	// DB 4-14-2023: TODO: figure out compatibility fix
-	if (m_compatibilityMode)
-	{
-		if (fbxNode->PreRotation.Get() == FbxVector4(0, 0, 0))
-		{
-			return;
-		}
-	}
-
 	const FbxDouble3 translation = fbxNode->LclTranslation.Get();
 
 	//const float posX = translation[0] - translationOffset[0];
@@ -1502,19 +1509,47 @@ static void setNodeTranslation( DzNode* dsNode, FbxNode* fbxNode, DzVec3 transla
 	float posY = translation[1] - translationOffset[1];
 	float posZ = translation[2] - translationOffset[2];
 
-	// DB 4-14-2023: TODO: figure out compatibility fix
-	if (m_compatibilityMode)
+	// DB 4-27-2023: Correction matrix for non-Daz poses
+	// Daz Pose Control value is relative to the bind matrix, so we need to calculate the difference between the bind matrix and the
+	//    current worldspace pose matrix but we also need to remove the parent contribution to bind matrix and pose matrix
+	// Daz pose control = (parent inverse bind matrix * bind matrix).Inverse() * (parent inverse worldspace pose matrix * worldspace pose matrix )
+	if (m_compatibilityMode && m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DazStudioCompatibilityMode)
 	{
-		FbxVector4 translationVector = fbxNode->EvaluateGlobalTransform().GetT();
-		DzVec3 defaultOrigin = dsNode->getOrigin(true);
-		posX = translationVector[0] - defaultOrigin[0];
-		posY = translationVector[1] - defaultOrigin[1];
-		posZ = translationVector[2] - defaultOrigin[2];
+		FbxVector4 lclTranslationVector;
+		FbxAMatrix parentWSMatrix;
+		parentWSMatrix.SetIdentity();
+		FbxAMatrix parentBindMatrix;
+		parentBindMatrix.SetIdentity();
+		if (fbxNode->GetParent())
+		{
+			parentWSMatrix = fbxNode->GetParent()->EvaluateGlobalTransform();
+			FbxTools::getBindMatrixFromCluster(fbxNode->GetParent(), parentBindMatrix);
+		}
+		FbxAMatrix currentWSMatrix = fbxNode->EvaluateGlobalTransform();
+		FbxAMatrix bindMatrix;
+		bindMatrix.SetIdentity();
+		FbxTools::getBindMatrixFromCluster(fbxNode, bindMatrix);
+		FbxAMatrix currentLclMatrix = parentWSMatrix.Inverse() * currentWSMatrix;
+		FbxAMatrix localBindMatrix = parentBindMatrix.Inverse() * bindMatrix;
+		FbxAMatrix lclMatrix = localBindMatrix.Inverse() * currentLclMatrix;
+
+		lclTranslationVector = lclMatrix.GetT();
+		float posX2 = lclTranslationVector[0];
+		float posY2 = lclTranslationVector[1];
+		float posZ2 = lclTranslationVector[2];
+		posX = posX2;
+		posY = posY2;
+		posZ = posZ2;
 
 		dsNode->getXPosControl()->setDefaultValue( 0 );
 		dsNode->getYPosControl()->setDefaultValue( 0 );
 		dsNode->getZPosControl()->setDefaultValue( 0 );
-		//return;
+
+		// DB 4-27-2023: TODO: add implementation for Max worldspace evaluation equation
+		if (m_compatibilityMode == DzFbxImporter::ECompatibilityMode::MaxCompatibilityMode)
+		{
+			return;
+		}
 	}
 
 	//dsNode->getXPosControl()->setDefaultValue( posX );
@@ -1837,7 +1872,7 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 							}
 							if (followModeControl)
 							{
-								followModeControl->setValue(0);
+								followModeControl->setValue(1);
 							}
 						}
 					}
@@ -2007,31 +2042,6 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 		const FbxVector4 rotationOffset = calcFbxRotationOffset( node->fbxNode );
 		node->dsNode->setOrigin(toVec3(rotationOffset), true);
 		setNodeOrientation(node->dsNode, node->fbxNode, m_compatibilityMode);
-
-		if (m_compatibilityMode)
-		{
-			FbxVector4 nodePosition = rotationOffset;
-			// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
-			FbxCluster* fbxCluster = FbxTools::findClusterFromNode(node->fbxNode);
-			FbxAMatrix fbxBindMatrix;
-			fbxBindMatrix.SetIdentity();
-			if (fbxCluster)
-			{
-				fbxCluster->GetTransformLinkMatrix(fbxBindMatrix);
-				FbxVector4 fbxBindPosition = fbxBindMatrix.GetT();
-				fbxBindPosition[3] = 1.0;
-				nodePosition = fbxBindPosition;
-			}
-			node->dsNode->setOrigin(toVec3(nodePosition), true);
-
-			//FbxAMatrix fbxPostMatrix;
-			//fbxPostMatrix.SetR(node->fbxNode->PostRotation.Get());
-			//FbxAMatrix fbxBindPostRotationMatrix = fbxBindMatrix * fbxPostMatrix;
-			//FbxVector4 fbxBindPostRotation = fbxBindPostRotationMatrix.GetR();
-			//const DzQuat newRot(DzRotationOrder::XYZ, DzVec3(fbxBindPostRotation[0], fbxBindPostRotation[1], fbxBindPostRotation[2]) * DZ_FLT_DEG_TO_RAD);
-			//node->dsNode->setOrientation(newRot, true);
-		}
-
 		setNodeRotationOrder( node->dsNode, node->fbxNode, m_compatibilityMode );
 
 		if ( rotationOffset.SquareLength() == 0.0 )
@@ -2067,6 +2077,36 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 			{
 				node->dsNode->setOrigin( node->bindTranslation, true );
 			}
+		}
+
+		if (m_compatibilityMode)
+		{
+			FbxVector4 nodePosition = rotationOffset;
+			// DB 2023-Mar-30: override pose and node transforms with bindmatrix from cluster
+			FbxCluster* fbxCluster = FbxTools::findClusterFromNode(node->fbxNode);
+			FbxAMatrix fbxBindMatrix;
+			fbxBindMatrix.SetIdentity();
+			if (fbxCluster)
+			{
+				fbxCluster->GetTransformLinkMatrix(fbxBindMatrix);
+				FbxVector4 fbxBindPosition = fbxBindMatrix.GetT();
+				fbxBindPosition[3] = 1.0;
+				nodePosition = fbxBindPosition;
+				if (rotationOffset.SquareLength() == 0.0)
+				{
+					node->bindTranslation[0] = fbxBindPosition[0];
+					node->bindTranslation[1] = fbxBindPosition[1];
+					node->bindTranslation[2] = fbxBindPosition[2];
+				}
+			}
+			node->dsNode->setOrigin(toVec3(nodePosition), true);
+
+			//FbxAMatrix fbxPostMatrix;
+			//fbxPostMatrix.SetR(node->fbxNode->PostRotation.Get());
+			//FbxAMatrix fbxBindPostRotationMatrix = fbxBindMatrix * fbxPostMatrix;
+			//FbxVector4 fbxBindPostRotation = fbxBindPostRotationMatrix.GetR();
+			//const DzQuat newRot(DzRotationOrder::XYZ, DzVec3(fbxBindPostRotation[0], fbxBindPostRotation[1], fbxBindPostRotation[2]) * DZ_FLT_DEG_TO_RAD);
+			//node->dsNode->setOrientation(newRot, true);
 		}
 
 		if ( node->collapseTranslation && dsMeshNode )
@@ -2161,6 +2201,13 @@ void DzFbxImporter::fbxImportGraph( Node* node )
 **/
 void DzFbxImporter::fbxImportAnimation( Node* node )
 {
+	// DB 4-27-23: Fix for recursively double-dipped posing of follower skeletons
+	// if node is following another skeleton, then skip
+	if (node->dsNode->getSkeleton() != NULL && node->dsNode->getSkeleton()->getFollowTarget() != NULL)
+	{
+		return;
+	}
+
 	if ( node->dsNode )
 	{
 		if ( !node->collapseTranslation )
@@ -2171,11 +2218,31 @@ void DzFbxImporter::fbxImportAnimation( Node* node )
 				translationOffset -= node->parent->bindTranslation;
 			}
 
-			if (getOriginalAppName().compare("daz studio", Qt::CaseInsensitive)!=0 && m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
+			//if (getOriginalAppName().compare("Daz Studio", Qt::CaseInsensitive)!=0 && m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
+			if (m_compatibilityMode != DzFbxImporter::ECompatibilityMode::DefaultCompatibilityMode)
 			{
-				setNodeTranslation(node->dsNode, node->fbxNode, translationOffset, m_compatibilityMode);
-				setNodeRotation(node->dsNode, node->fbxNode, m_compatibilityMode);
-				setNodeScaling(node->dsNode, node->fbxNode);
+				DzFbxImporter::ECompatibilityMode overrideCompatibilityMode = m_compatibilityMode;
+				if (getOriginalAppName().compare("Daz Studio", Qt::CaseInsensitive) == 0)
+				{
+					overrideCompatibilityMode = DzFbxImporter::ECompatibilityMode::DazStudioCompatibilityMode;
+				}
+				else if (getOriginalAppName().compare("3ds Max", Qt::CaseInsensitive) == 0)
+				{
+					overrideCompatibilityMode = DzFbxImporter::ECompatibilityMode::MaxCompatibilityMode;
+				}
+				// DB 4-27-23: Fix for recursively double-dipped posing of follower skeletons
+				// if node is following another skeleton, then skip
+				bool bSkipPose = false;
+				if (node->dsNode->getSkeleton() != NULL && node->dsNode->getSkeleton()->getFollowTarget() != NULL)
+				{
+					bSkipPose = true;
+				}
+				if (bSkipPose == false)
+				{
+					setNodeTranslation(node->dsNode, node->fbxNode, translationOffset, overrideCompatibilityMode);
+					setNodeRotation(node->dsNode, node->fbxNode, overrideCompatibilityMode);
+					setNodeScaling(node->dsNode, node->fbxNode);
+				}
 			}
 			else
 			{
@@ -2187,6 +2254,9 @@ void DzFbxImporter::fbxImportAnimation( Node* node )
 
 		if ( m_fbxAnimLayer && !node->collapseTranslation )
 		{
+			// DB 4-27-2023: TODO: To support non-Daz Studio animations: modify all curves to remove parent bindmatrix offset from children bindmatrix
+			//  See correction matrix creation and application in setNodeTranslation() and setNodeRotation()
+
 			applyFbxCurve( node->fbxNode->LclTranslation.GetCurve( m_fbxAnimLayer, FBXSDK_CURVENODE_COMPONENT_X ), node->dsNode->getXPosControl() );
 			applyFbxCurve( node->fbxNode->LclTranslation.GetCurve( m_fbxAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y ), node->dsNode->getYPosControl() );
 			applyFbxCurve( node->fbxNode->LclTranslation.GetCurve( m_fbxAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z ), node->dsNode->getZPosControl() );

@@ -1575,3 +1575,56 @@ FbxNode* FbxTools::findAssociatedSkeletonRoot(FbxMesh* pMesh)
 
 	return pSkeletonRoot;
 }
+
+bool FbxTools::getBindMatrixFromCluster(FbxNode* pNode, FbxAMatrix &returnMatrix)
+{
+	bool bSuccess = false;
+	if (pNode)
+	{
+		FbxCluster* pCluster = FbxTools::findClusterFromNode(pNode);
+		if (pCluster)
+		{
+			bSuccess = true;
+			FbxAMatrix bindMatrix;
+			pCluster->GetTransformLinkMatrix(bindMatrix);
+			returnMatrix = bindMatrix;
+		}
+	}
+	return bSuccess;
+}
+
+bool FbxTools::getBindTranslationFromCluster(FbxNode* pNode, FbxVector4 &returnTranslation)
+{
+	bool bSuccess = false;
+	if (pNode) 
+	{
+		FbxAMatrix bindMatrix;
+		bSuccess = FbxTools::getBindMatrixFromCluster(pNode, bindMatrix);
+		if (bSuccess)
+		{
+			FbxVector4 bindTranslation(0, 0, 0, 1);
+			bindTranslation = bindMatrix.GetT();
+			bindTranslation[3] = 1.0f;
+			returnTranslation = bindTranslation;
+		}
+	}
+	return bSuccess;
+}
+
+bool FbxTools::getBindRotationFromCluster(FbxNode* pNode, FbxVector4& returnRotation)
+{
+	bool bSuccess = false;
+	if (pNode)
+	{
+		FbxAMatrix bindMatrix;
+		bSuccess = FbxTools::getBindMatrixFromCluster(pNode, bindMatrix);
+		if (bSuccess)
+		{
+			FbxVector4 bindRotation(0, 0, 0, 1);
+			bindRotation = bindMatrix.GetR();
+			bindRotation[3] = 1.0f;
+			returnRotation = bindRotation;
+		}
+	}
+	return bSuccess;
+}

@@ -93,6 +93,13 @@ public:
 	static bool isBone(FbxNode* pNode, int skeletonTypeMask = -1);
 
 	static FbxNode* findAssociatedSkeletonRoot(FbxMesh* pMesh);
+
+	static bool getBindMatrixFromCluster(FbxNode* pNode, FbxAMatrix& returnMatrix);
+
+	static bool getBindTranslationFromCluster(FbxNode* pNode, FbxVector4& returnTranslation);
+
+	static bool getBindRotationFromCluster(FbxNode* pNode, FbxVector4& returnRotation);
+
 };
 
 
