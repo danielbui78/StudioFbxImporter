@@ -619,7 +619,8 @@ void DzFbxImporter::fbxRead( const QString &filename )
 		{
 			// Assume that no AxisSystem was provided...
 			// Override the Default Axis Settings for 3ds Max
-			if (m_fbxOrigAppName == "3ds Max" || m_fbxOrigAppName == "Maya")
+			//if (m_fbxOrigAppName == "3ds Max" || m_fbxOrigAppName == "Maya")
+			if (m_fbxOrigAppName == "3ds Max")
 			{
 				int fbxUpVectorSign = 1;
 				int fbxFrontVectorSign = -1;
@@ -3397,6 +3398,28 @@ void DzFbxImporter::fbxImportMesh( Node* node, FbxNode* fbxNode, DzNode* dsMeshN
 
 	const int numVertices = fbxMesh->GetControlPointsCount();
 	FbxVector4* fbxVertices = fbxMesh->GetControlPoints();
+
+	// DB 4-27-2023: evaluate bindpose onto vertexbuffer
+	//   this should fix multiple bindposes as well as rootnode offsets and rotations
+	fbxsdk::FbxArray<int> indexArray;
+	fbxsdk::PoseList poseList;
+	FbxNode* skeletonRoot = FbxTools::findAssociatedSkeletonRoot(fbxMesh);
+	if (FbxPose::GetBindPoseContaining(fbxMesh->GetScene(), skeletonRoot, poseList, indexArray) == true)
+	{
+		int i = indexArray[0];
+		FbxPose* pBindPose = poseList[0];
+		if (pBindPose->IsBindPose())
+		{
+			FbxAMatrix correctionMatrix;
+			correctionMatrix.SetIdentity();
+			if (FbxTools::getBindMatrixFromCluster(fbxNode, correctionMatrix))
+			{
+				FbxTools::bakePoseToVertexBuffer(fbxVertices, &correctionMatrix, pBindPose, fbxMesh);
+				FbxTools::bakePoseToBindMatrix(fbxMesh, pBindPose);
+			}
+		}
+	}
+
 	fbxImportVertices( numVertices, fbxVertices, dsMesh, offset );
 
 	fbxImportUVs( fbxMesh, dsMesh );
