@@ -21,7 +21,7 @@
 // Version number for the FBX Importer plug-in
 #define PLUGIN_MAJOR	1
 #define PLUGIN_MINOR	4
-#define PLUGIN_REV		6
+#define PLUGIN_REV		7
 #define PLUGIN_BUILD	1000
 
 #define PLUGIN_VERSION	DZ_MAKE_VERSION( PLUGIN_MAJOR, PLUGIN_MINOR, PLUGIN_REV, PLUGIN_BUILD )
